@@ -1,0 +1,40 @@
+/*
+ * Tailwind v4: import the theme + utilities layers directly instead of the
+ * old `@tailwind base/components/utilities` v3 directives. We deliberately
+ * skip Tailwind's preflight layer (equivalent to v3's
+ * `corePlugins: { preflight: false }`) because MUI's <CssBaseline /> already
+ * normalizes the DOM and the two resets disagree on some defaults.
+ */
+@import 'tailwindcss/theme' layer(theme);
+@import 'tailwindcss/utilities' layer(utilities);
+
+@theme {
+  /*
+   * Mirrors src/theme/palette.ts so Tailwind utilities (e.g. for one-off
+   * layout tweaks) can stay visually consistent with MUI components
+   * without duplicating hex codes everywhere.
+   */
+  --color-ink-950: #0a0e14;
+  --color-ink-900: #10151f;
+  --color-ink-800: #1a2130;
+  --color-ink-700: #242c3d;
+  --color-signal-cyan: #2fd9c4;
+  --color-signal-amber: #f5a623;
+  --color-signal-red: #f0506e;
+  --color-signal-violet: #7c8cf8;
+}
+
+html,
+body {
+  height: 100%;
+  /* Safety net: nothing in the layout is meant to force horizontal scroll
+     on the page itself (the log table scrolls internally instead — see
+     DataTable.tsx), but this guards against anything unaccounted for on
+     narrow viewports. */
+  overflow-x: hidden;
+}
+
+/* CssBaseline (MUI) handles most resets; this only covers what it doesn't. */
+* {
+  box-sizing: border-box;
+}
