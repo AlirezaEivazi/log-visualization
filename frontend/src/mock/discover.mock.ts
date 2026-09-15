@@ -31,7 +31,7 @@ function pick<T>(arr: T[], seed: number): T {
  */
 export const mockLogs: LogEntry[] = Array.from({ length: 120 }).map((_, i) => {
   const level = pick(LEVELS, i);
-  const timestamp = new Date(Date.now() - i * 47_000).toISOString();
+  const timestamp = new Date(Date.UTC(2026, 8, 15, 15, 30, 0) - i * 47_000).toISOString();
   return {
     id: `log-${i}`,
     timestamp,

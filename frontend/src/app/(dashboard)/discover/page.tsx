@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-\import {
+import {
   Box, Button, Chip, Divider, FormControl, IconButton, InputAdornment, Menu,
   MenuItem, Paper, Popover, Select, Stack, Tab, Tabs, TextField, Tooltip,
   Typography, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem,
@@ -30,11 +30,12 @@ import AnalyticsOutlinedIcon from '@mui/icons-material/AnalyticsOutlined';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useTheme, alpha } from '@mui/material/styles';
 import { mockLogs } from '@/mock/discover.mock';
-import type { LogEntry, LogLevel } from '@/types/discover.types';
+import type { LogEntry } from '@/types/discover.types';
 import { fontMono } from '@/theme/typography';
 import { formatTime } from '@/utils/formatDate';
 import { useTranslation } from '@/i18n/useTranslation';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { InspectDialog } from '@/components/discover/inspect';
 
 type Filter = { id: string; field: string; operator: '=' | '!='; value: string; enabled: boolean };
 type DiscoverTab = {
@@ -395,15 +396,18 @@ export default function DiscoverPage() {
         </DialogContent><DialogActions><Button onClick={()=>setDisplayOpen(false)}>Done</Button></DialogActions>
       </Dialog>
 
-      {/* Inspector */}
-      <Dialog open={inspectOpen} onClose={()=>setInspectOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Inspect</DialogTitle><DialogContent>
-          <Tabs value={0}><Tab label="Request"/><Tab label="Response"/><Tab label="Statistics"/></Tabs>
-          <Box sx={{mt:2,p:1.5,bgcolor:'background.default',borderRadius:1,fontFamily:fontMono,fontSize:12,overflow:'auto'}}>
-            {JSON.stringify({index:active.dataView,size:rows,query:mode==='classic'?{kql:query}:{esql:query},filters:active.filters,time_range:active.timeRange},null,2)}
-          </Box>
-        </DialogContent><DialogActions><Button onClick={()=>setInspectOpen(false)}>Close</Button><Button startIcon={<ContentCopyIcon/>}>Copy request</Button></DialogActions>
-      </Dialog>
+      <InspectDialog
+        open={inspectOpen}
+        onClose={() => setInspectOpen(false)}
+        dataView={active.dataView}
+        query={query}
+        mode={mode}
+        timeRange={active.timeRange}
+        filters={active.filters}
+        size={rows}
+        sort={active.sort}
+        filteredLogs={filtered}
+      />
 
       <Dialog open={saveOpen} onClose={()=>setSaveOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Save Discover session</DialogTitle><DialogContent><TextField fullWidth size="small" label="Title" defaultValue={active.title} sx={{mt:1}}/><TextField fullWidth size="small" label="Description" sx={{mt:1}}/></DialogContent><DialogActions><Button onClick={()=>setSaveOpen(false)}>Cancel</Button><Button variant="contained" onClick={()=>setSaveOpen(false)}>Save</Button></DialogActions>

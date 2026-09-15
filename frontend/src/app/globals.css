@@ -24,23 +24,13 @@
   --color-signal-violet: #7c8cf8;
 }
 
-/*
- * Keep the scrollbar space reserved even when a component temporarily
- * changes the page overflow (e.g. MUI Dialog/Drawer/Modal).
- * This prevents the page width from jumping when the scrollbar disappears.
- */
-html {
-  scrollbar-gutter: stable;
-}
-
 html,
 body {
   height: 100%;
-
-  /*
-   * Safety net: nothing in the layout is meant to force horizontal scroll
-   * on the page itself. The log table scrolls internally instead.
-   */
+  /* Safety net: nothing in the layout is meant to force horizontal scroll
+     on the page itself (the log table scrolls internally instead — see
+     DataTable.tsx), but this guards against anything unaccounted for on
+     narrow viewports. */
   overflow-x: hidden;
   scrollbar-gutter: stable;
 
