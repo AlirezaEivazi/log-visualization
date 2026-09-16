@@ -100,7 +100,10 @@ export default function DiscoverPage() {
     const index = tabs.findIndex(tab => tab.id === id);
     const next = tabs.filter(tab => tab.id !== id);
     setTabs(next);
-    if (id === activeId) setActiveId(next[Math.max(0, index - 1)]?.id ?? next[0].id);
+    if (id === activeId) {
+      const fallbackId = next[Math.max(0, index - 1)]?.id ?? next[0]?.id;
+      if (fallbackId) setActiveId(fallbackId);
+    }
   };
 
   const renameTab = () => {

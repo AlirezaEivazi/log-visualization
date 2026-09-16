@@ -80,10 +80,13 @@ export interface Dictionary {
       documents: string;
       hits: string;
       hitsTotal: string;
+      dataViewId: string;
+      requestTimestamp: string;
       copy: string;
       copied: string;
       openConsole: string;
       successful: string;
+      of: string;
       primaryCluster: string;
       shardsQueried: (count: number) => string;
       total: string;

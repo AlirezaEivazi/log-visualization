@@ -32,7 +32,7 @@ export function InspectCodePanel({ value, label, showConsole = false }: InspectC
 
   return (
     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', boxSizing: 'border-box' }}>
-      <Stack direction="row" justifyContent="space-between" sx={{ px: 1.5, py: 0.75, minHeight: 42, borderBottom: 1, borderColor: 'divider', alignItems: 'center'}}>
+      <Stack direction="row" sx={{ px: 1.5, py: 0.75, minHeight: 42, borderBottom: 1, borderColor: 'divider', alignItems: 'center', justifyContent: 'space-between'}}>
         <Typography variant="caption" color="text.secondary">{label}</Typography>
         <Stack direction="row" spacing={0.5}>
           {showConsole && (

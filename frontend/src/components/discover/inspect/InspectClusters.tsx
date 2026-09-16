@@ -12,36 +12,49 @@ export function InspectClusters({ response }: { response: InspectResponseContext
   const shardSummary = t.discover.inspector.shardsQueried(1);
   return (
     <Stack spacing={0}>
-      <Box sx={{ px: 1, py: 1.5 }}>
-        <Typography variant="subtitle2">{t.discover.inspector.clusters}</Typography>
-        <Typography variant="caption" color="text.secondary">
+      <Box sx={{ px: 1.5, py: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>{t.discover.inspector.clusters}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '12px' }}>
           {t.discover.inspector.clustersDescription}
         </Typography>
       </Box>
       <Divider />
-      <Box sx={{ px: 1, py: 1.25 }}>
-        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-          <StorageOutlinedIcon fontSize="small" color="action" />
+      <Box sx={{ px: 1.5, py: 1.75 }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+          <StorageOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>logs-benchmark</Typography>
-            <Typography variant="caption" color="text.secondary">{t.discover.inspector.primaryCluster} · {shardSummary}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '13px' }}>Local cluster</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '12px' }}>{shardSummary}</Typography>
           </Box>
-          <Chip icon={<CheckCircleIcon />} label={t.discover.inspector.successful} size="small" color="success" variant="outlined" />
+          <Chip
+            icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+            label={t.discover.inspector.successful}
+            size="small"
+            sx={{
+              bgcolor: 'success.light',
+              color: 'success.dark',
+              fontWeight: 600,
+              fontSize: '12px',
+              height: 24,
+              '& .MuiChip-icon': { color: 'success.main' }
+            }}
+          />
         </Stack>
       </Box>
-      <Divider />
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, p: 1 }}>
-        {[
-          [t.discover.inspector.total, '1'],
-          [t.discover.inspector.successful, '1'],
-          [t.discover.inspector.skipped, '0'],
-          [t.discover.inspector.failed, '0'],
-        ].map(([label, value]) => (
-          <Box key={label} sx={{ p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">{label}</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25 }}>{label === 'Total' ? response.returned > 0 ? value : '0' : value}</Typography>
-          </Box>
-        ))}
+      <Divider sx={{ my: 1 }} />
+      <Box sx={{ px: 1.5, pb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, fontSize: '13px' }}>Shards</Typography>
+        <Stack direction="row" spacing={1.5}>
+          {[
+            [t.discover.inspector.total, '1'],
+            [t.discover.inspector.successful, '1 ' + t.discover.inspector.of + ' 1'],
+          ].map(([label, value]) => (
+            <Box key={label} sx={{ flex: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '11px', display: 'block', mb: 0.5 }}>{label}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '13px' }}>{value}</Typography>
+            </Box>
+          ))}
+        </Stack>
       </Box>
     </Stack>
   );

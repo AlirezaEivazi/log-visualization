@@ -54,7 +54,7 @@ export function InspectDialog({
   filteredLogs,
 }: InspectDialogProps) {
   const { t, dir } = useTranslation();
-  const [tab, setTab] = React.useState<InspectTab>('response');
+  const [tab, setTab] = React.useState<InspectTab>('statistics');
   const [view, setView] = React.useState<InspectView>('requests');
   const [selectedRequestId, setSelectedRequestId] = React.useState('documents');
   const [viewAnchorEl, setViewAnchorEl] = React.useState<HTMLElement | null>(null);
@@ -85,7 +85,7 @@ export function InspectDialog({
 
   React.useEffect(() => {
     if (!open) {
-      setTab('response');
+      setTab('statistics');
       setView('requests');
       setSelectedRequestId('documents');
     }
@@ -174,18 +174,26 @@ export function InspectDialog({
                     selectedId={selectedRequest.id}
                     onChange={id => {
                       setSelectedRequestId(id);
-                      setTab('response');
+                      setTab('statistics');
                     }}
                   />
                 </Box>
                 <Chip
-                  icon={<CheckCircleIcon sx={{ fontSize: 17 }} />}
-                  label={`${selectedRequest.durationMs} ms`}
+                  icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+                  label={`${selectedRequest.durationMs}ms`}
                   size="small"
-                  sx={{ mt: 2.25, height: 26, bgcolor: 'success.light', color: 'success.dark', fontWeight: 700, '& .MuiChip-icon': { color: 'success.main' } }}
+                  sx={{
+                    mt: 2.5,
+                    height: 24,
+                    bgcolor: 'success.light',
+                    color: 'success.dark',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    '& .MuiChip-icon': { color: 'success.main' }
+                  }}
                 />
               </Stack>
-              <Typography variant="body2" sx={{ mt: 1.15, color: 'text.primary', lineHeight: 1.45 }}>
+              <Typography variant="body2" sx={{ mt: 1.25, color: 'text.secondary', lineHeight: 1.5, fontSize: '13px' }}>
                 {selectedRequestDescription}
               </Typography>
             </Box>

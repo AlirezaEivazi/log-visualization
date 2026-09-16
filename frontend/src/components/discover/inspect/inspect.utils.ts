@@ -128,13 +128,30 @@ export function buildStatisticsPayload(
   response: InspectResponseContext,
   requestItem: InspectRequestItem,
 ) {
+  const generateSearchId = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 16; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const generateDataViewId = () => {
+    return 'discover-observability-solution-all-logs';
+  };
+
+  const generateTimestamp = () => {
+    const now = new Date();
+    return now.toISOString();
+  };
+
   return [
     { label: 'Hits', value: response.returned.toLocaleString() },
-    { label: 'Hits (total)', value: response.total.toLocaleString() },
     { label: 'Data view', value: request.dataView },
-    { label: 'Query time', value: `${requestItem.durationMs} ms` },
-    { label: 'Kibana API route', value: '/internal/search/es' },
-    { label: 'Time range', value: request.timeRange },
+    { label: 'Data view ID', value: generateDataViewId() },
+    { label: 'Query time', value: `${requestItem.durationMs}ms` },
+    { label: 'Request timestamp', value: generateTimestamp() },
   ];
 }
 

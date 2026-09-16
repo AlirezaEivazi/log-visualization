@@ -28,8 +28,8 @@ export function InspectRequestPicker({ items, selectedId, onChange }: InspectReq
   const menuOpen = Boolean(anchorEl);
 
   return (
-    <Stack spacing={0.65}>
-      <Typography variant="caption" color="text.primary" sx={{ fontSize: 12 }}>
+    <Stack spacing={0.75}>
+      <Typography variant="caption" color="text.primary" sx={{ fontSize: 12, fontWeight: 500 }}>
         {t.discover.inspector.requestCount(items.length)}
       </Typography>
 
@@ -41,22 +41,22 @@ export function InspectRequestPicker({ items, selectedId, onChange }: InspectReq
         aria-haspopup="menu"
         aria-expanded={menuOpen ? 'true' : undefined}
         sx={{
-          minHeight: 40,
-          px: 1.5,
+          minHeight: 42,
+          px: 1.75,
           justifyContent: 'space-between',
           textTransform: 'none',
           color: 'text.primary',
           borderColor: 'divider',
           bgcolor: 'background.paper',
-          '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
+          '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
         }}
         endIcon={<KeyboardArrowDownIcon fontSize="small" />}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1, textAlign: 'left' }}>
-          <Typography component="span" variant="body2" sx={{ pr: 1.5, mr: 1.5, borderRight: 1, borderColor: 'divider', fontWeight: 500, flexShrink: 0 }}>
+          <Typography component="span" variant="body2" sx={{ pr: 1.75, mr: 1.75, borderRight: 1, borderColor: 'divider', fontWeight: 600, flexShrink: 0, fontSize: '13px' }}>
             {t.discover.inspector.request}
           </Typography>
-          <Typography component="span" variant="body2" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography component="span" variant="body2" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
             {selectedLabel}
           </Typography>
         </Box>
@@ -73,7 +73,6 @@ export function InspectRequestPicker({ items, selectedId, onChange }: InspectReq
             sx: { minWidth: anchorEl?.clientWidth ?? 260, maxHeight: 320, zIndex: 1600 },
           },
         }}
-        MenuListProps={{ dense: true }}
       >
         {items.map(item => (
           <MenuItem
@@ -89,7 +88,7 @@ export function InspectRequestPicker({ items, selectedId, onChange }: InspectReq
         ))}
       </Menu>
 
-      <Typography variant="caption" color="text.primary" sx={{ fontSize: 12, lineHeight: 1.45 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.5 }}>
         {selectedDescription}
       </Typography>
     </Stack>
