@@ -28,7 +28,7 @@ export function InspectJsonPanel({ value, label }: InspectJsonPanelProps) {
 
   return (
     <Box sx={{ minHeight: 390, border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
+      <Stack direction="row" justifyContent="space-between" sx={{ px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover', alignItems: 'center'}}>
         <Typography variant="caption" color="text.secondary">{label}</Typography>
         <Tooltip title={copied ? 'Copied' : 'Copy'}>
           <IconButton size="small" onClick={copy} aria-label={copied ? 'Copied' : `Copy ${label}`}>

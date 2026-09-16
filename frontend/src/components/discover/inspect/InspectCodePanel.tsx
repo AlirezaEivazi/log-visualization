@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { useTranslation } from '@/i18n/useTranslation';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import CheckIcon from '@mui/icons-material/Check';
@@ -15,6 +16,7 @@ interface InspectCodePanelProps {
 }
 
 export function InspectCodePanel({ value, label, showConsole = false }: InspectCodePanelProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
   const text = React.useMemo(() => stringifyJson(value), [value]);
 
@@ -29,20 +31,20 @@ export function InspectCodePanel({ value, label, showConsole = false }: InspectC
   };
 
   return (
-    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden', bgcolor: 'background.paper' }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 0.75, minHeight: 42, borderBottom: 1, borderColor: 'divider' }}>
+    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', boxSizing: 'border-box' }}>
+      <Stack direction="row" justifyContent="space-between" sx={{ px: 1.5, py: 0.75, minHeight: 42, borderBottom: 1, borderColor: 'divider', alignItems: 'center'}}>
         <Typography variant="caption" color="text.secondary">{label}</Typography>
         <Stack direction="row" spacing={0.5}>
           {showConsole && (
-            <Tooltip title="Open in Console">
+            <Tooltip title={t.discover.inspector.openConsole}>
               <Button size="small" variant="text" startIcon={<TerminalIcon fontSize="small" />} sx={{ textTransform: 'none' }}>
-                Open in Console
+                {t.discover.inspector.openConsole}
               </Button>
             </Tooltip>
           )}
-          <Tooltip title={copied ? 'Copied' : 'Copy to clipboard'}>
+          <Tooltip title={copied ? t.discover.inspector.copied : t.discover.inspector.copy}>
             <Button size="small" variant="text" startIcon={copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />} onClick={copy} sx={{ textTransform: 'none' }}>
-              {copied ? 'Copied' : 'Copy to clipboard'}
+              {copied ? t.discover.inspector.copied : t.discover.inspector.copy}
             </Button>
           </Tooltip>
         </Stack>
@@ -52,12 +54,11 @@ export function InspectCodePanel({ value, label, showConsole = false }: InspectC
         sx={{
           m: 0,
           p: 1.75,
-          height: 'calc(100vh - 300px)',
-          minHeight: 300,
-          maxHeight: 620,
+          flex: '1 1 auto',
+          minHeight: 0,
           overflow: 'auto',
-          bgcolor: '#fff',
-          color: '#263238',
+          bgcolor: 'background.default',
+          color: 'text.primary',
           fontFamily: fontMono,
           fontSize: 12,
           lineHeight: 1.65,
