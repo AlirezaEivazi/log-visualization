@@ -59,6 +59,18 @@ export function InspectDialog({
   const [selectedRequestId, setSelectedRequestId] = React.useState('documents');
   const [viewAnchorEl, setViewAnchorEl] = React.useState<HTMLElement | null>(null);
 
+  // Reset state when dialog opens using callback ref pattern
+  const prevOpenRef = React.useRef(open);
+  React.useEffect(() => {
+    if (!open && prevOpenRef.current) {
+      // Dialog just closed, reset for next open
+      setTab('statistics');
+      setView('requests');
+      setSelectedRequestId('documents');
+    }
+    prevOpenRef.current = open;
+  }, [open]);
+
   const request = React.useMemo<InspectRequestContext>(() => ({
     dataView,
     query,
@@ -82,14 +94,6 @@ export function InspectDialog({
     : t.discover.inspector.fieldStatisticsRequest;
   const requestPayload = React.useMemo(() => buildRequestPayload(request, selectedRequest), [request, selectedRequest]);
   const responsePayload = React.useMemo(() => buildResponsePayload(response, selectedRequest), [response, selectedRequest]);
-
-  React.useEffect(() => {
-    if (!open) {
-      setTab('statistics');
-      setView('requests');
-      setSelectedRequestId('documents');
-    }
-  }, [open]);
 
   return (
     <Drawer

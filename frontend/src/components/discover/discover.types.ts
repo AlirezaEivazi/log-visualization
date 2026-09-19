@@ -1,15 +1,30 @@
 import type { LogEntry } from '@/types/discover.types';
 
+export type FilterOperator = 'is' | 'is not' | 'is one of' | 'exists' | 'does not exist';
+
 export type Filter = {
   id: string;
   field: string;
-  operator: '=' | '!=';
+  operator: FilterOperator;
   value: string;
+  values?: string[]; // For "is one of" operator
   enabled: boolean;
+  negate?: boolean;
+  label?: string; // Custom display name
 };
 
 export type DiscoverMode = 'classic' | 'esql';
 export type Density = 'compact' | 'normal' | 'expanded';
+
+export type CustomDiscoverField = {
+  name: string;
+  type: 'keyword' | 'text' | 'number' | 'date' | 'boolean';
+  label?: string;
+  description?: string;
+  value?: string;
+  format?: string;
+  popularity?: number;
+};
 
 export type DiscoverTabState = {
   id: string;

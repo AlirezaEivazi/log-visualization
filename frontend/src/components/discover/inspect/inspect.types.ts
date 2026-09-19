@@ -4,12 +4,17 @@ export type InspectMode = 'classic' | 'esql';
 export type InspectTab = 'statistics' | 'clusters' | 'request' | 'response';
 export type InspectView = 'requests' | 'profiles';
 
+export type InspectFilterOperator = 'is' | 'is not' | 'is one of' | 'exists' | 'does not exist';
+
 export interface InspectFilter {
   id: string;
   field: string;
-  operator: '=' | '!=';
+  operator: InspectFilterOperator;
   value: string;
+  values?: string[];
   enabled: boolean;
+  negate?: boolean;
+  label?: string;
 }
 
 export interface InspectRequestContext {

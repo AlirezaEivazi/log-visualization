@@ -69,11 +69,29 @@ function buildQuery(context: InspectRequestContext) {
       must: context.query
         ? [{ query_string: { query: context.query } }]
         : [{ match_all: {} }],
-      filter: context.filters.filter(f => f.enabled).map(f =>
-        f.operator === '='
-          ? { term: { [f.field]: f.value } }
-          : { bool: { must_not: [{ term: { [f.field]: f.value } }] } },
-      ),
+      filter: context.filters.filter(f => f.enabled).map(f => {
+        let query;
+        switch (f.operator) {
+          case 'is':
+            query = { term: { [f.field]: f.value } };
+            break;
+          case 'is not':
+            query = { bool: { must_not: [{ term: { [f.field]: f.value } }] } };
+            break;
+          case 'is one of':
+            query = { terms: { [f.field]: f.values || [] } };
+            break;
+          case 'exists':
+            query = { exists: { field: f.field } };
+            break;
+          case 'does not exist':
+            query = { bool: { must_not: [{ exists: { field: f.field } }] } };
+            break;
+          default:
+            query = { match_all: {} };
+        }
+        return f.negate ? { bool: { must_not: [query] } } : query;
+      }),
     },
   };
 }

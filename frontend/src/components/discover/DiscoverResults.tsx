@@ -9,10 +9,11 @@ import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SearchIcon from '@mui/icons-material/Search';
 import type { LogEntry } from '@/types/discover.types';
-import type { Density, DiscoverMode, DiscoverTabState } from './discover.types';
+import type { CustomDiscoverField, Density, DiscoverMode, DiscoverTabState } from './discover.types';
 import { COLUMN_LABELS } from './discover.types';
 import { formatDateTime, formatTime } from '@/utils/formatDate';
 import { fontMono } from '@/theme/typography';
+import { useTheme } from '@mui/material/styles';
 
 interface Props {
   logs: LogEntry[];
@@ -28,13 +29,15 @@ interface Props {
   onSort: () => void;
   onDisplay: () => void;
   onFullscreen: () => void;
+  customFields: CustomDiscoverField[];
 }
 
 function summary(log: LogEntry) {
   return `created_at ${formatDateTime(log.timestamp)}  id ${log.id.replace('log-', '')}  level ${log.level.toUpperCase()}  message ${log.message}  service ${log.service}  host ${log.host}  _id ${log.id}  _index logs-benchmark  _score (null)`;
 }
 
-export function DiscoverResults({ logs, tab, density, mode, page, rowsPerPage, onPage, onRowsPerPage, onOpenDocument, onColumns, onSort, onDisplay, onFullscreen }: Props) {
+export function DiscoverResults({ logs, tab, density, mode, page, rowsPerPage, onPage, onRowsPerPage, onOpenDocument, onColumns, onSort, onDisplay, onFullscreen, customFields }: Props) {
+  const theme = useTheme();
   const start = page * rowsPerPage;
   const visible = logs.slice(start, start + rowsPerPage);
   const totalPages = Math.max(1, Math.ceil(logs.length / rowsPerPage));
@@ -55,17 +58,31 @@ export function DiscoverResults({ logs, tab, density, mode, page, rowsPerPage, o
         <Tooltip title="Fullscreen"><IconButton size="small" onClick={onFullscreen}><FullscreenIcon fontSize="small" /></IconButton></Tooltip>
       </Stack>
     </Box>
-    <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', bgcolor: 'background.paper', '& thead th': { bgcolor: 'background.paper' } }}>
+    <Box sx={{
+      flex: 1,
+      minHeight: 0,
+      minWidth: 0,
+      overflow: 'auto',
+      bgcolor: 'background.paper',
+      '& thead th': {
+        bgcolor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+      },
+      '& tbody tr:hover': {
+        backgroundColor: theme.palette.action.hover,
+      },
+    }}>
       <table style={{ width: '100%', minWidth: columns.length <= 2 ? 850 : 980, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead><tr>
-          <th style={{ width: 40, borderBottom: '1px solid var(--divider)' }} />
-          {columns.map(column => <th key={column} style={{ position: 'sticky', top: 0, zIndex: 2, width: column === 'summary' || column === 'message' ? 620 : 145, textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--divider)', fontSize: 12, fontWeight: 650, background: 'inherit' }}>{COLUMN_LABELS[column] ?? column}</th>)}
+          <th style={{ width: 40, borderBottom: `1px solid ${theme.palette.divider}`, background: theme.palette.background.default }} />
+          {columns.map(column => <th key={column} style={{ position: 'sticky', top: 0, zIndex: 2, width: column === 'summary' || column === 'message' ? 620 : 145, textAlign: 'left', padding: '9px 10px', borderBottom: `1px solid ${theme.palette.divider}`, fontSize: 12, fontWeight: 700, background: theme.palette.background.default, color: theme.palette.text.primary, boxShadow: `inset 0 -1px 0 ${theme.palette.divider}` }}>{COLUMN_LABELS[column] ?? column}</th>)}
         </tr></thead>
         <tbody>
           {visible.map(log => <tr key={log.id} style={{ borderBottom: '1px solid rgba(148,163,184,.14)' }}>
             <td style={{ textAlign: 'center', verticalAlign: 'top' }}><IconButton size="small" onClick={() => onOpenDocument(log)}><KeyboardArrowDownIcon fontSize="small" /></IconButton></td>
             {columns.map(column => <td key={column} title={String(log[column as keyof LogEntry] ?? '')} style={{ padding: density === 'expanded' ? '11px 10px' : '7px 10px', verticalAlign: 'top', fontSize: cellFont, lineHeight: 1.5, whiteSpace: column === 'summary' || column === 'message' ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: column === 'timestamp' || column === 'summary' ? fontMono : 'inherit' }}>
-              {column === 'timestamp' ? formatTime(log.timestamp) : column === 'summary' ? summary(log) : column === 'level' ? <Chip size="small" label={log.level.toUpperCase()} color={log.level === 'error' ? 'error' : log.level === 'warn' ? 'warning' : 'default'} sx={{ height: 20, fontSize: 10, fontWeight: 700 }} /> : String(log[column as keyof LogEntry] ?? '')}
+              {column === 'timestamp' ? formatTime(log.timestamp) : column === 'summary' ? summary(log) : column === 'level' ? <Chip size="small" label={log.level.toUpperCase()} color={log.level === 'error' ? 'error' : log.level === 'warn' ? 'warning' : 'default'} sx={{ height: 20, fontSize: 10, fontWeight: 700 }} /> : customFields.find(field => field.name === column)?.value ?? String(log[column as keyof LogEntry] ?? '')}
             </td>)}
           </tr>)}
         </tbody>

@@ -4,7 +4,7 @@ import * as React from 'react';
 import {
   Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, FormControlLabel, IconButton, Menu, MenuItem,
-  Paper, Select, Stack, Switch, TextField, Tooltip, Typography, ListItemText, ListItemIcon, Divider,
+  Paper, Select, Stack, Switch, TextField, Tooltip, Typography, ListItemText, ListItemIcon, Divider, Autocomplete,
 } from '@mui/material';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
@@ -28,7 +28,9 @@ import { DiscoverFieldsSidebar } from '@/components/discover/DiscoverFieldsSideb
 import { DiscoverChart } from '@/components/discover/DiscoverChart';
 import { DiscoverResults } from '@/components/discover/DiscoverResults';
 import { DiscoverFieldStatistics } from '@/components/discover/DiscoverFieldStatistics';
-import type { Density, DiscoverTabState, Filter } from '@/components/discover/discover.types';
+import { DiscoverCreateFieldDialog } from '@/components/discover/DiscoverCreateFieldDialog';
+import type { CustomDiscoverField, Density, DiscoverTabState, Filter, FilterOperator } from '@/components/discover/discover.types';
+import { COLUMN_LABELS } from '@/components/discover/discover.types';
 import { DISCOVER_FIELDS } from '@/components/discover/discover.types';
 
 const seedTab = (id: string, title: string): DiscoverTabState => ({
@@ -43,13 +45,41 @@ const seedTab = (id: string, title: string): DiscoverTabState => ({
   mode: 'classic',
 });
 
+// Get latest timestamp from mockLogs for relative time filtering
+const getLatestTimestamp = () => {
+  const timestamps = mockLogs.map(log => new Date(log.timestamp).getTime());
+  return Math.max(...timestamps);
+};
+
+const LATEST_TIMESTAMP = getLatestTimestamp();
+
+// Parse time range string to milliseconds
+const parseTimeRange = (range: string): number => {
+  if (range === 'Last 15 minutes') return 15 * 60 * 1000;
+  if (range === 'Last 1 hour') return 60 * 60 * 1000;
+  if (range === 'Last 24 hours') return 24 * 60 * 60 * 1000;
+  if (range === 'Last 7 days') return 7 * 24 * 60 * 60 * 1000;
+  return 15 * 60 * 1000;
+};
+
+// Extract unique values for a field from filtered logs
+const getUniqueValues = (logs: LogEntry[], field: string): string[] => {
+  const values = new Set<string>();
+  logs.forEach(log => {
+    const value = log[field as keyof LogEntry];
+    if (value !== undefined && value !== null) {
+      values.add(String(value));
+    }
+  });
+  return Array.from(values).sort();
+};
+
 export default function DiscoverPage() {
   const { t, dir } = useTranslation();
   usePageTitle('Discover');
 
   const [tabs, setTabs] = React.useState<DiscoverTabState[]>([seedTab('tab-1', 'Untitled')]);
   const [activeId, setActiveId] = React.useState('tab-1');
-  const [queryDraft, setQueryDraft] = React.useState('');
   const [fieldSearch, setFieldSearch] = React.useState('');
   const [fieldStats, setFieldStats] = React.useState(false);
   const [chartVisible, setChartVisible] = React.useState(false);
@@ -57,19 +87,25 @@ export default function DiscoverPage() {
   const [density, setDensity] = React.useState<Density>('compact');
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(100);
-  const [selectedDocument, setSelectedDocument] = React.useState<LogEntry | null>(null);
+  const [selectedDoc, setSelectedDoc] = React.useState<LogEntry | null>(null);
   const [documentMode, setDocumentMode] = React.useState<'table' | 'json'>('table');
   const [inspectOpen, setInspectOpen] = React.useState(false);
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [columnsOpen, setColumnsOpen] = React.useState(false);
+  const [createFieldOpen, setCreateFieldOpen] = React.useState(false);
+  const [customFields, setCustomFields] = React.useState<CustomDiscoverField[]>([]);
   const [sortOpen, setSortOpen] = React.useState(false);
   const [displayOpen, setDisplayOpen] = React.useState(false);
   const [fullscreen, setFullscreen] = React.useState(false);
   const [newFilterField, setNewFilterField] = React.useState('service');
   const [newFilterValue, setNewFilterValue] = React.useState('');
-  const [newFilterOp, setNewFilterOp] = React.useState<'=' | '!='>('=');
+  const [newFilterOp, setNewFilterOp] = React.useState<FilterOperator>('is');
+  const [newFilterValues, setNewFilterValues] = React.useState<string[]>([]);
+  const [newFilterNegate, setNewFilterNegate] = React.useState(false);
+  const [newFilterLabel, setNewFilterLabel] = React.useState('');
+  const [editingFilterId, setEditingFilterId] = React.useState<string | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [moreActionsAnchor, setMoreActionsAnchor] = React.useState<null | HTMLElement>(null);
   const [exportAnchor, setExportAnchor] = React.useState<null | HTMLElement>(null);
@@ -77,10 +113,13 @@ export default function DiscoverPage() {
 
   const active = tabs.find(tab => tab.id === activeId) ?? tabs[0]!;
 
-  React.useEffect(() => {
-    setQueryDraft(active.query);
-    setPage(0);
-  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Track query draft state per tab
+  const [queryDrafts, setQueryDrafts] = React.useState<Record<string, string>>({});
+  const queryDraft = queryDrafts[activeId] ?? active.query;
+
+  const handleQueryChange = React.useCallback((value: string) => {
+    setQueryDrafts(prev => ({ ...prev, [activeId]: value }));
+  }, [activeId]);
 
   const updateActive = React.useCallback((patch: Partial<DiscoverTabState>) => {
     setTabs(current => current.map(tab => tab.id === activeId ? { ...tab, ...patch } : tab));
@@ -116,32 +155,127 @@ export default function DiscoverPage() {
     setPage(0);
   };
 
+  // Check if log passes filter
+  const passesFilter = (log: LogEntry, filter: Filter): boolean => {
+    if (!filter.enabled) return true;
+
+    const fieldValue = log[filter.field as keyof LogEntry];
+    const value = String(fieldValue ?? '').toLowerCase();
+
+    let result = false;
+
+    switch (filter.operator) {
+      case 'is':
+        result = value === filter.value.toLowerCase();
+        break;
+      case 'is not':
+        result = value !== filter.value.toLowerCase();
+        break;
+      case 'is one of':
+        result = (filter.values || []).some(v => value === v.toLowerCase());
+        break;
+      case 'exists':
+        result = fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+        break;
+      case 'does not exist':
+        result = fieldValue === undefined || fieldValue === null || fieldValue === '';
+        break;
+      default:
+        result = true;
+    }
+
+    return filter.negate ? !result : result;
+  };
+
+  // Check if log is within time range
+  const withinTimeRange = (log: LogEntry, timeRange: string): boolean => {
+    const logTime = new Date(log.timestamp).getTime();
+    const rangeMs = parseTimeRange(timeRange);
+    return logTime >= LATEST_TIMESTAMP - rangeMs;
+  };
+
   const filtered = React.useMemo(() => {
     const q = active.query.trim().toLowerCase();
     return [...mockLogs]
       .filter(log => {
+        // Time range filter
+        if (!withinTimeRange(log, active.timeRange)) return false;
+
+        // Query filter
         if (q && !`${log.message} ${log.service} ${log.host} ${log.level}`.toLowerCase().includes(q)) return false;
-        return active.filters.every(filter => {
-          if (!filter.enabled) return true;
-          const value = String(log[filter.field as keyof LogEntry] ?? '').toLowerCase();
-          return filter.operator === '=' ? value.includes(filter.value.toLowerCase()) : !value.includes(filter.value.toLowerCase());
-        });
+
+        // Field filters
+        return active.filters.every(filter => passesFilter(log, filter));
       })
       .sort((a, b) => {
         const left = String(a[active.sort.field]);
         const right = String(b[active.sort.field]);
         return active.sort.direction === 'asc' ? left.localeCompare(right) : right.localeCompare(left);
       });
-  }, [active, refreshKey]);
+  }, [active.query, active.timeRange, active.filters, active.sort]);
 
   const histogram = React.useMemo(() => Array.from({ length: 44 }, (_, index) => 3 + ((index * 19 + filtered.length * 5) % 23)), [filtered.length]);
 
-  const addFilter = () => {
-    if (!newFilterValue.trim()) return;
-    const filter: Filter = { id: `${Date.now()}`, field: newFilterField, operator: newFilterOp, value: newFilterValue.trim(), enabled: true };
-    updateActive({ filters: [...active.filters, filter] });
-    setNewFilterValue('');
+  // Get autocomplete values for current filter field
+  const autocompleteValues = React.useMemo(() => {
+    return getUniqueValues(mockLogs, newFilterField);
+  }, [newFilterField]);
+
+  const openFilterDialog = (filter?: Filter) => {
+    if (filter) {
+      setEditingFilterId(filter.id);
+      setNewFilterField(filter.field);
+      setNewFilterOp(filter.operator);
+      setNewFilterValue(filter.value);
+      setNewFilterValues(filter.values || []);
+      setNewFilterNegate(filter.negate || false);
+      setNewFilterLabel(filter.label || '');
+    } else {
+      setEditingFilterId(null);
+      setNewFilterField('service');
+      setNewFilterOp('is');
+      setNewFilterValue('');
+      setNewFilterValues([]);
+      setNewFilterNegate(false);
+      setNewFilterLabel('');
+    }
+    setFilterOpen(true);
+  };
+
+  const addOrUpdateFilter = () => {
+    const needsValue = newFilterOp !== 'exists' && newFilterOp !== 'does not exist';
+    const hasValue = newFilterOp === 'is one of' ? newFilterValues.length > 0 : newFilterValue.trim() !== '';
+
+    if (needsValue && !hasValue) return;
+
+    const filter: Filter = {
+      id: editingFilterId || `filter-${Date.now()}`,
+      field: newFilterField,
+      operator: newFilterOp,
+      value: newFilterOp === 'is one of' ? newFilterValues.join(', ') : newFilterValue.trim(),
+      values: newFilterOp === 'is one of' ? newFilterValues : undefined,
+      enabled: true,
+      negate: newFilterNegate,
+      label: newFilterLabel.trim() || undefined,
+    };
+
+    if (editingFilterId) {
+      updateActive({ filters: active.filters.map(f => f.id === editingFilterId ? filter : f) });
+    } else {
+      updateActive({ filters: [...active.filters, filter] });
+    }
+
     setFilterOpen(false);
+  };
+
+  const getFilterLabel = (filter: Filter): string => {
+    if (filter.label) return filter.label;
+
+    const op = filter.operator === 'is' ? ':' : filter.operator === 'is not' ? ' is not ' : filter.operator === 'is one of' ? ' is one of ' : ` ${filter.operator}`;
+    const value = filter.operator === 'exists' || filter.operator === 'does not exist' ? '' : ` ${filter.value}`;
+    const negate = filter.negate ? 'NOT ' : '';
+
+    return `${negate}${filter.field}${op}${value}`;
   };
 
   const toggleColumn = (column: string) => updateActive({ columns: active.columns.includes(column) ? active.columns.filter(item => item !== column) : [...active.columns, column] });
@@ -239,20 +373,29 @@ export default function DiscoverPage() {
       </Menu>
 
       <DiscoverTabs tabs={tabs} activeId={activeId} onChange={setActiveId} onAdd={addTab} onClose={closeTab} onRename={renameTab} onCloseOthers={() => setTabs(current => current.filter(tab => tab.id === activeId))} />
-      <DiscoverQueryBar tab={active} queryDraft={queryDraft} onQueryChange={setQueryDraft} onQueryRun={runQuery} onTabChange={updateActive} onAddFilter={() => setFilterOpen(true)} onRefresh={() => setRefreshKey(key => key + 1)} />
+      <DiscoverQueryBar tab={active} queryDraft={queryDraft} onQueryChange={handleQueryChange} onQueryRun={runQuery} onTabChange={updateActive} onAddFilter={() => openFilterDialog()} onRefresh={() => setRefreshKey(key => key + 1)} />
 
       {active.filters.length > 0 && (
         <Box sx={{ px: 1, py: .5, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: .5, flexWrap: 'wrap' }}>
-          {active.filters.map(filter => <Chip key={filter.id} size="small" color={filter.enabled ? 'primary' : 'default'} variant={filter.enabled ? 'filled' : 'outlined'} label={`${filter.field} ${filter.operator} ${filter.value}`} onDelete={() => updateActive({ filters: active.filters.filter(item => item.id !== filter.id) })} onClick={() => updateActive({ filters: active.filters.map(item => item.id === filter.id ? { ...item, enabled: !item.enabled } : item) })} />)}
+          {active.filters.map(filter => (
+            <Chip
+              key={filter.id}
+              size="small"
+              color={filter.enabled ? 'primary' : 'default'}
+              variant={filter.enabled ? 'filled' : 'outlined'}
+              label={getFilterLabel(filter)}
+              onDelete={() => updateActive({ filters: active.filters.filter(item => item.id !== filter.id) })}
+              onClick={() => openFilterDialog(filter)}
+            />
+          ))}
           <Button size="small" onClick={() => updateActive({ filters: [] })}>Clear all</Button>
         </Box>
       )}
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-        {sidebarVisible && <DiscoverFieldsSidebar tab={active} search={fieldSearch} onSearch={setFieldSearch} onChange={updateActive} onAddField={() => setColumnsOpen(true)} />}
+        {sidebarVisible && <DiscoverFieldsSidebar tab={active} search={fieldSearch} onSearch={setFieldSearch} onChange={updateActive} onAddField={() => setCreateFieldOpen(true)} filteredLogs={filtered} customFields={customFields} />}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, px: 1, py: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Stack direction="row" sx={{ mb: .75,    alignItems: 'center',
-    justifyContent: 'space-between', }}>
+          <Stack direction="row" sx={{ mb: .75, alignItems: 'center', justifyContent: 'space-between' }}>
             <Stack direction="row" spacing={.5} sx={{ alignItems: 'center' }}>
               {!sidebarVisible && <Button size="small" startIcon={<ViewColumnOutlinedIcon />} onClick={() => setSidebarVisible(true)}>Show fields</Button>}
               {chartVisible ? <Button size="small" startIcon={<AnalyticsOutlinedIcon />} onClick={() => setChartVisible(false)}>Hide chart</Button> : <Button size="small" startIcon={<AnalyticsOutlinedIcon />} onClick={() => setChartVisible(true)}>Show chart</Button>}
@@ -267,11 +410,11 @@ export default function DiscoverPage() {
             <Button onClick={() => setFieldStats(true)} sx={{ borderRadius: 0, px: 1.5, color: fieldStats ? 'primary.main' : 'text.primary', fontWeight: fieldStats ? 700 : 500 }}>Field statistics</Button>
           </Box>
 
-          {fieldStats ? <Paper variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', borderTop: 0, borderRadius: 0 }}><DiscoverFieldStatistics logs={filtered} /></Paper> : <DiscoverResults logs={filtered} tab={active} density={density} mode={active.mode} page={page} rowsPerPage={rowsPerPage} onPage={setPage} onRowsPerPage={setRowsPerPage} onOpenDocument={log => { setSelectedDocument(log); }} onColumns={() => setColumnsOpen(true)} onSort={() => setSortOpen(true)} onDisplay={() => setDisplayOpen(true)} onFullscreen={() => setFullscreen(value => !value)} />}
+          {fieldStats ? <Paper variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', borderTop: 0, borderRadius: 0 }}><DiscoverFieldStatistics logs={filtered} /></Paper> : <DiscoverResults logs={filtered} tab={active} density={density} mode={active.mode} page={page} rowsPerPage={rowsPerPage} onPage={setPage} onRowsPerPage={setRowsPerPage} onOpenDocument={log => { setSelectedDoc(log); }} onColumns={() => setColumnsOpen(true)} customFields={customFields} onSort={() => setSortOpen(true)} onDisplay={() => setDisplayOpen(true)} onFullscreen={() => setFullscreen(value => !value)} />}
         </Box>
       </Box>
 
-      <DocumentDialog document={selectedDocument} mode={documentMode} onMode={setDocumentMode} onClose={() => setSelectedDocument(null)} />
+      <DocumentDialog document={selectedDoc} mode={documentMode} onMode={setDocumentMode} onClose={() => setSelectedDoc(null)} />
 
       <InspectDialog open={inspectOpen} onClose={() => setInspectOpen(false)} dataView={active.dataView} query={active.query} mode={active.mode} timeRange={active.timeRange} filters={active.filters} size={rowsPerPage} sort={active.sort} filteredLogs={filtered} />
 
@@ -292,21 +435,96 @@ export default function DiscoverPage() {
         <DialogActions><Button onClick={() => setUtilityDialog(null)}>{t.discover.moreActions.close}</Button></DialogActions>
       </Dialog>
 
-      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Add filter</DialogTitle>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingFilterId ? 'Edit filter' : 'Add filter'}</DialogTitle>
         <DialogContent>
-          <FormControl fullWidth size="small" sx={{ mt: 1 }}><Select value={newFilterField} onChange={e => setNewFilterField(e.target.value)}>{DISCOVER_FIELDS.map(field => <MenuItem key={field.name} value={field.name}>{field.name}</MenuItem>)}</Select></FormControl>
-          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <FormControl size="small" sx={{ width: 110 }}><Select value={newFilterOp} onChange={e => setNewFilterOp(e.target.value as '=' | '!=')}><MenuItem value="=">is</MenuItem><MenuItem value="!=">is not</MenuItem></Select></FormControl>
-            <TextField autoFocus fullWidth size="small" value={newFilterValue} onChange={e => setNewFilterValue(e.target.value)} label="Value" onKeyDown={e => { if (e.key === 'Enter') addFilter(); }} />
+          <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+            <Select value={newFilterField} onChange={e => setNewFilterField(e.target.value)}>
+              {DISCOVER_FIELDS.map(field => <MenuItem key={field.name} value={field.name}>{field.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+
+          <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+            <FormControl size="small" sx={{ width: 140 }}>
+              <Select value={newFilterOp} onChange={e => setNewFilterOp(e.target.value as FilterOperator)}>
+                <MenuItem value="is">is</MenuItem>
+                <MenuItem value="is not">is not</MenuItem>
+                <MenuItem value="is one of">is one of</MenuItem>
+                <MenuItem value="exists">exists</MenuItem>
+                <MenuItem value="does not exist">does not exist</MenuItem>
+              </Select>
+            </FormControl>
+
+            {newFilterOp === 'is one of' ? (
+              <Autocomplete
+                multiple
+                freeSolo
+                fullWidth
+                size="small"
+                options={autocompleteValues}
+                value={newFilterValues}
+                onChange={(_, newValue) => setNewFilterValues(newValue)}
+                renderInput={(params) => <TextField {...params} label="Values" />}
+              />
+            ) : (newFilterOp !== 'exists' && newFilterOp !== 'does not exist') && (
+              <Autocomplete
+                freeSolo
+                fullWidth
+                size="small"
+                options={autocompleteValues}
+                value={newFilterValue}
+                onInputChange={(_, newValue) => setNewFilterValue(newValue)}
+                renderInput={(params) => <TextField {...params} label="Value" onKeyDown={e => { if (e.key === 'Enter') addOrUpdateFilter(); }} />}
+              />
+            )}
           </Stack>
+
+          <FormControlLabel
+            sx={{ mt: 1.5 }}
+            control={<Checkbox checked={newFilterNegate} onChange={e => setNewFilterNegate(e.target.checked)} />}
+            label="Negate filter"
+          />
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Custom label (optional)"
+            value={newFilterLabel}
+            onChange={e => setNewFilterLabel(e.target.value)}
+            sx={{ mt: 1.5 }}
+            placeholder="e.g., Production errors"
+          />
         </DialogContent>
-        <DialogActions><Button onClick={() => setFilterOpen(false)}>Cancel</Button><Button variant="contained" onClick={addFilter} disabled={!newFilterValue.trim()}>Add filter</Button></DialogActions>
+        <DialogActions>
+          <Button onClick={() => setFilterOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={addOrUpdateFilter}
+            disabled={
+              (newFilterOp !== 'exists' && newFilterOp !== 'does not exist') &&
+              (newFilterOp === 'is one of' ? newFilterValues.length === 0 : !newFilterValue.trim())
+            }
+          >
+            {editingFilterId ? 'Update filter' : 'Add filter'}
+          </Button>
+        </DialogActions>
       </Dialog>
+
+      <DiscoverCreateFieldDialog
+        open={createFieldOpen}
+        dataView={active.dataView}
+        logs={filtered}
+        onClose={() => setCreateFieldOpen(false)}
+        onSave={(field) => {
+          setCustomFields(current => current.some(item => item.name === field.name) ? current.map(item => item.name === field.name ? field : item) : [...current, field]);
+          updateActive({ columns: active.columns.includes(field.name) ? active.columns : [...active.columns, field.name] });
+          setCreateFieldOpen(false);
+        }}
+      />
 
       <Dialog open={columnsOpen} onClose={() => setColumnsOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Columns</DialogTitle>
-        <DialogContent dividers>{['timestamp', 'summary', 'level', 'service', 'host', 'message'].map(column => <FormControlLabel key={column} sx={{ display: 'flex' }} control={<Checkbox checked={active.columns.includes(column)} onChange={() => toggleColumn(column)} />} label={column === 'timestamp' ? '@timestamp' : column} />)}</DialogContent>
+        <DialogContent dividers>{[...['timestamp', 'summary', 'level', 'service', 'host', 'message'], ...customFields.map(field => field.name)].map(column => <FormControlLabel key={column} sx={{ display: 'flex' }} control={<Checkbox checked={active.columns.includes(column)} onChange={() => toggleColumn(column)} />} label={COLUMN_LABELS[column] ?? customFields.find(field => field.name === column)?.label ?? column} />)}</DialogContent>
         <DialogActions><Button onClick={() => setColumnsOpen(false)}>Done</Button></DialogActions>
       </Dialog>
 
